@@ -10,6 +10,7 @@ class SVM:
         self.niter = niter
         self.batch_size = batch_size
         self.verbose = verbose
+        
 
     def make_one_versus_all_labels(self, y, m):
         """
@@ -17,17 +18,16 @@ class SVM:
         m : int (num_classes)
         returns : numpy array of shape (n, m)
         """
-        num_array = len(y)
-        res = []
-        for j in range(num_array):
-            row = [] 
-            for i in range(m):
-                if i == y[j]:
-                    row.append(1)
-                else:
-                    row.append(-1)
-            res.append(row)
-        return res
+
+        #W = np.zeros((len(y), m))
+        # Create an array filled with -1 of shape (len(y), m)
+        one_v_all_labels = -1 * np.ones((len(y), m))
+        
+        # For each label in y, set the corresponding column in one_v_all_labels to 1
+        for i in range(len(y)):
+            one_v_all_labels[i, y[i]] = 1
+            
+        return one_v_all_labels
 
     def compute_loss(self, x, y):
         """
@@ -35,7 +35,20 @@ class SVM:
         y : numpy array of shape (minibatch size, num_classes)
         returns : float
         """
-        pass
+        
+            # Compute the scores
+        scores = np.dot(x, self.w)
+
+        # Compute the margins
+        margins = np.maximum(0, 2 - y * scores)**2
+
+        # Compute the loss
+        loss = np.mean(np.sum(margins, axis=1))
+
+        # Add regularization
+        loss += 0.5 * self.C * np.sum(self.w * self.w)
+
+        return loss
 
     def compute_gradient(self, x, y):
         """
@@ -43,7 +56,55 @@ class SVM:
         y : numpy array of shape (minibatch size, num_classes)
         returns : numpy array of shape (num_features, num_classes)
         """
-        pass
+        #y = np.argmax(y,axis=1)
+            # Compute the scores
+
+        scores = np.dot(x, self.w)
+
+        # margins = 2-y*scores
+        margins = np.maximum(0, 2 - np.multiply(y , scores))
+
+        mask = margins>0
+        mg = 2*np.multiply(mask,-np.multiply(y,scores))
+        dw = np.dot(x.T,mg)
+
+        # #     # Create a binary mask of the margins
+        # binary = np.zeros_like(margins)
+        # binary[scores > 0] = 1
+
+        # #binary[np.arange(y.shape[0]), y.argmax(axis=1)] = -np.sum(binary, axis=1)
+
+        # # # Compute the gradient
+        # # dw = -np.dot(x.T, binary * y) / x.shape[0]\
+
+        # #m = int(y.max())
+
+        #    # Compute the gradient
+        # dw = np.zeros(self.w.shape)
+
+        # for i in range(x.shape[0]):
+        #     for j in range(self.w.shape[1]):
+        #         for k in range(self.w.shape[0]):
+        #             if margins[i, j] > 0:
+        #                 dw[k, j] += -2 * x[i, k] * margins[i, j] * binary[i, j]
+
+        # # Compute the gradient
+        # dw = np.zeros_like(self.w)
+        # for i in range(3):
+        #     for j in range(x.shape[1]):
+        #         if y[i, j] == 1:
+        #             dw[j, i] = -2 * np.sum(binary[i, :] * x[i, j] * (2 - y[i, :] * scores[i, :]))
+        #         else:
+        #             dw[j, i] = 2 * np.sum(binary[i, :] * x[i, j] * (2 - y[i, :] * scores[i, :]))
+
+        
+
+
+        dw /= x.shape[0]
+
+        dw += self.C * self.w
+
+        return dw
 
     # Batcher function
     def minibatch(self, iterable1, iterable2, size=1):
@@ -61,7 +122,21 @@ class SVM:
         x : numpy array of shape (num_examples_to_infer, num_features)
         returns : numpy array of shape (num_examples_to_infer, num_classes)
         """
-        pass
+            # Compute the scores
+        scores = np.dot(x, self.w)
+
+        # Get the indices of the max score for each example
+        y_pred = np.argmax(scores, axis=1)
+
+        # Create an array filled with -1 of shape (len(y_pred), num_classes)
+        y_inferred = -1 * np.ones((len(y_pred), self.m))
+
+        # For each predicted label, set the corresponding column in y_inferred to 1
+        # for i in range(len(y_pred)):
+        #     y_inferred[i, y_pred[i]] = 1
+        y_inferred[np.arange(len(y_pred)), y_pred] = 1
+
+        return y_inferred
 
     def compute_accuracy(self, y_inferred, y):
         """
@@ -69,7 +144,17 @@ class SVM:
         y : numpy array of shape (num_examples, num_classes)
         returns : float
         """
-        pass
+            # Convert one-versus-all labels to single labels
+        y_inferred_single = np.argmax(y_inferred, axis=1)
+        y_single = np.argmax(y, axis=1)
+
+        # Compute the number of correct predictions
+        correct_predictions = np.sum(y_inferred_single == y_single)
+
+        # Compute the accuracy
+        accuracy = correct_predictions / len(y_single)
+
+        return accuracy
 
     def fit(self, x_train, y_train, x_test, y_test):
         """
